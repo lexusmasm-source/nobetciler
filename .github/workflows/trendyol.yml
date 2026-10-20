@@ -1,0 +1,41 @@
+name: Trendyol Firsat Nobetcisi
+
+# Her 15 dakikada bir Trendyol'u tarar; buyuk/guvenilir saticilarda
+# %50+ indirim, kupon ve indirim+kupon stacking (neredeyse bedava)
+# firsatlarini Telegram'a bildirir. State dosyasi repo'ya geri commit'lenir.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  tara:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tarama + Telegram bildirimi
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Opsiyonel ayarlar (repo Variables veya buradan):
+          # MIN_INDIRIM_YUZDE: "50"
+          # STACKING_YUZDE: "80"
+          # TRENDYOL_ARANACAKLAR: "kulaklik,akilli saat,robot supurge"
+        run: python3 trendyol_nobetci.py --tg-once
+
+      - name: State'i kaydet (fiyat gecmisi + alarm tekrar engeli)
+        run: |
+          git config user.name "trendyol-nobetci"
+          git config user.email "bot@localhost"
+          git add trendyol_state.json || true
+          git diff --cached --quiet || git commit -m "state: trendyol tarama guncelleme"
+          git push || true
